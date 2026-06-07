@@ -26,20 +26,42 @@ metadata:
 
 ---
 
-## Phase 0：预检与降级（必须先执行）
+## Phase 0：预检与执行模式选择（必须先执行）
 
 1. **确定请求模式**：解析用户输入中的 `full`、`lean`、`solo`；未指定时目标模式为 `full`。
-2. **确认是否允许 spawn**：如果当前已经在子代理/Agent 内执行，不再递归 spawn，直接降级为 `solo`。
-3. **检查核心 Agent 部署状态**（只检查项目内 agents，不要假设一定存在）：
-   - full 必需：`.claude/agents/story-architect.md`、`.claude/agents/character-designer.md`、`.claude/agents/narrative-writer.md`、`.claude/agents/consistency-checker.md`
-   - lean 必需：`.claude/agents/story-architect.md`、`.claude/agents/consistency-checker.md`
-   - 对每个必需 Agent 文件，读取 frontmatter，确认 `name:` 与 subagent_type 完全一致；frontmatter 缺失、不可解析或 name 不匹配时视为 malformed agent。
-   - 如果 `.story-deployed` 存在且 `agents_version` 缺失或小于 `10`，视为 stale deployment；不要 spawn，降级 `solo`，建议用户重新运行 `/story-setup`。
-   - 如果目标模式所需任一文件缺失或 malformed，**不要尝试 spawn 缺失/异常 Agent**；自动降级为 `solo`，并在报告开头写明：`Fallback: missing agents -> solo` 或 `Fallback: malformed agents -> solo`，列出问题文件，建议用户运行 `/story-setup`。
-4. **确认 Agent/Task 工具可用**：如果当前环境没有可用的子 Agent/Task 调用能力，直接降级为 `solo`，报告 `Fallback: agent tool unavailable -> solo`。
-5. **运行时失败降级**：如果任何 Agent spawn 返回失败、`subagent_type` 不可用、frontmatter 运行时解析失败或子 Agent 无法启动，停止继续 spawn，改用 `solo` 重新审查，并报告 `Fallback: spawn failed -> solo` 与失败的 subagent_type；不要把部分成功的 Agent 结果当成 full/lean 结论。
-6. **确定实际模式**：报告中必须同时列出 `Requested Mode` 与 `Effective Mode`。
-7. **禁止把 `.active-book` 当作平台来源**：`.active-book` 只表示当前书名/目录名，不代表目标平台。
+
+2. **检测可用的 Agent 执行方式**：
+
+   **方式 A - 使用项目部署的 Agent**：
+   - 检查项目 agent 定义文件（`.kilo/agent/` 或 `.claude/agents/`）
+   - full 必需：`story-architect.md`、`character-designer.md`、`narrative-writer.md`、`consistency-checker.md`
+   - lean 必需：`story-architect.md`、`consistency-checker.md`
+   - 验证每个文件 frontmatter 的 `name` 或 `description` 字段正确
+   
+   **方式 B - 使用环境子代理能力**：
+   - 如果项目 agents 未部署，检查当前环境是否有子代理调用能力（如 Task 工具）
+   - 使用环境子代理时，直接传递审查任务和角色描述
+   
+   **方式 C - Solo 模式**：
+   - 如果既没有项目 agents，也没有环境子代理能力，由当前会话直接执行
+
+3. **确定执行路径**：
+   - 优先使用项目部署的 Agent（方式 A）
+   - 项目 agents 不可用时，使用环境子代理（方式 B）
+   - 都不可用时，降级为 solo（方式 C）
+
+4. **递归保护**：如果当前已经在子代理/Agent 内执行，不再递归调用子代理，直接执行 solo。
+
+5. **报告元数据**：在报告开头输出实际执行路径：
+   ```md
+   Requested Mode: full | lean | solo
+   Effective Mode: full | lean | solo
+   Execution: project-agents | environment-subagents | solo
+   Agent Source: .kilo/agent | .claude/agents | environment | none
+   Fallback: none | no project agents -> environment | no subagent capability -> solo | recursion guard -> solo
+   Rubric: fanqie | qidian | zhihu | generic
+   Rubric Source: file | embedded
+   ```
 
 ---
 
@@ -171,11 +193,27 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
 
 ---
 
-## Phase 2：并行 Spawn Agent（full/lean 模式）
+## Phase 2：并行执行 Agent（full/lean 模式）
 
-使用 Agent 工具并行调用。每个 Agent 不继承父对话上下文，prompt 必须自包含项目路径、审查范围、文件路径、必要摘录、审查基准包摘要、Rubric Source 和统一 Findings Schema。
+执行 Phase 0 后，只有实际模式仍是 full/lean 时才执行此阶段。
 
-**调用规则**：执行 Phase 0 后，只有实际模式仍是 full/lean 时才 spawn。不要 spawn 缺失 Agent。
+### 2.1 选择执行方式
+
+**方式 A - 使用项目部署的 Agent**：
+- 检测到项目 agents（`.kilo/agent/` 或 `.claude/agents/`）存在且有效
+- 使用 Agent 工具并行调用，subagent_type 对应 agent 文件名
+- 每个 Agent 不继承父对话上下文，prompt 必须自包含
+
+**方式 B - 使用环境子代理**：
+- 项目 agents 不可用，但当前环境支持子代理调用（如 Task 工具）
+- 使用环境子代理执行相同任务，将角色描述直接写在 prompt 中
+- 根据环境能力选择并行或串行执行
+
+**调用规则**：不要调用缺失的 agent。不要递归调用（已在本阶段时跳过）。
+
+### 2.2 Agent 任务定义
+
+无论使用哪种执行方式，每个 reviewer 的任务如下：
 
 **Agent 1: story-architect**（subagent_type: story-architect）
 - full/lean 均调用。
@@ -288,15 +326,39 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   FACTUAL_RECONCILIATION: [仅列需统一的事实来源或需人工裁决项，不写文学创作建议]
   ```
 
+### 2.3 环境子代理执行示例
+
+当使用环境子代理（非项目 agents）时，执行方式如下：
+
+**Task 工具示例**：
+```
+使用 Task 工具，传入以下 prompt：
+
+你是故事架构审查员，负责审查故事结构和情节设计。
+你的任务是【找问题】，以最严苛的标准审视。
+
+[完整审查任务内容，包括项目路径、审查范围、审查基准等]
+
+输出格式要求：
+VERDICT: APPROVE / CONCERNS / REJECT
+FINDINGS: [使用统一 Schema]
+RECOMMENDATIONS: [修改建议]
+```
+
+**执行策略**：
+- 如果环境支持并行任务，同时启动多个审查任务
+- 如果只支持串行，按顺序执行：story-architect → consistency-checker → character-designer → narrative-writer
+- 收集所有结果后执行 Phase 3 综合
+
 ---
 
 ## Phase 3：综合裁决
 
-1. 收集实际执行的 reviewer VERDICT 和 FINDINGS。
+1. 收集实际执行的 reviewer VERDICT 和 FINDINGS（无论来自项目 agents 还是环境子代理）。
 2. 合并去重：按 `severity` 排序（S1 > S2 > S3 > S4），同级内按影响范围排序。
-3. **可选事实核查**：如果审查内容涉及需要验证的外部事实（历史年代、地理方位、职业细节等），只有在 `Effective Mode` 仍为 `full`/`lean`、当前不是子 Agent、Agent/Task 工具可用且 `.claude/agents/story-researcher.md` 已部署时，才可额外 spawn `story-researcher` 搜索验证；`solo`、missing/malformed/stale/spawn failed 降级或子代理递归保护场景下不得 spawn，只能在报告中标记“需人工事实核查”。
+3. **可选事实核查**：如果审查内容涉及需要验证的外部事实（历史年代、地理方位、职业细节等），只有在 `Effective Mode` 仍为 `full`/`lean`、当前不是子代理、且子代理调用能力可用时，才可额外调用事实核查任务；`solo` 或递归保护场景下不得调用，只能在报告中标记"需人工事实核查"。
 4. **分歧呈现**：如果 reviewer 间有冲突意见，明确呈现分歧让用户裁决；不要自动妥协。
-5. 输出综合审查报告。报告必须列出实际模式、fallback 原因、使用的 rubric、Rubric Source、审查范围和证据不足项。
+5. 输出综合审查报告。报告必须列出实际模式、执行方式、使用的 rubric、审查范围和证据不足项。
 
 ---
 
@@ -310,7 +372,9 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
 === 故事审查报告 ===
 Requested Mode: full | lean
 Effective Mode: full | lean
-Fallback: none
+Execution: project-agents | environment-subagents | solo
+Agent Source: .kilo/agent | .claude/agents | environment | none
+Fallback: none | no project agents -> environment | no subagent capability -> solo
 Rubric: fanqie | qidian | zhihu | generic web-fiction
 Rubric Source: file | embedded fallback
 审查范围: {章节/文件/批次}

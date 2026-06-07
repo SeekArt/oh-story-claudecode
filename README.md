@@ -2,7 +2,9 @@
 
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenClaw。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。**适配 Claude Code、Kilo、OpenClaw、TRAE 等多种 AI 编程工具**。
+
+> 📢 **v1.2.0 更新**：现已支持多工具兼容！不再局限于 Claude Code，可在 Kilo、OpenClaw、TRAE 等工具中使用。详见 [迁移指南](docs/migration-guide.md)。
 
 ## 核心思路
 
@@ -73,6 +75,8 @@ flowchart LR
 
 ## 安装
 
+### Claude Code / OpenClaw
+
 **方式一** 直接告诉 Claude Code / OpenClaw：
 
 ```
@@ -87,13 +91,39 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 `-g` 全局安装，所有目录可用；去掉 `-g` 则只装到当前目录。更新时重新执行同一条命令即可。
 
-> 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
+### Kilo
+
+**方式一** 克隆项目：
+
+```bash
+git clone https://github.com/worldwonderer/oh-story-claudecode.git
+cd oh-story-claudecode
+```
+
+**方式二** 使用为项目安装（在项目根目录）：
+
+```bash
+# 复制 skills 目录和配置
+cp -r oh-story-claudecode/skills ./
+cp oh-story-claudecode/kilo.json ./  # 如没有则创建
+cp -r oh-story-claudecode/.kilo ./
+```
+
+### 其他工具（TRAE 等）
+
+1. 复制 `skills/` 目录到项目
+2. 复制 `.kilo/agent/` 和 `.kilo/command/` 到对应工具的配置目录
+3. 参考 `AGENTS.md` 配置项目说明
+
+> 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 agents 和配置。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
+
+> 📖 **详细迁移指南**：见 [docs/migration-guide.md](docs/migration-guide.md) 和 [docs/agent-compatibility.md](docs/agent-compatibility.md)。
 
 ## Skills
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署（已有配置安全合并） |
+| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · agents/AGENTS.md 一键部署（已有配置安全合并，支持多工具） |
 | `story` | `/story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
@@ -160,19 +190,23 @@ demo/拆文库-盘龙/
 
 写作 skill 内部通过 7 个专业 Agent 协作，各司其职：
 
-| Agent | 模型 | 职责 |
+| Agent | 职责 | 模型建议 |
 |:------|:-----|:-----|
-| **story-architect** | Opus | 故事架构 · 题材定位、大纲结构、钩子/反转设计、情绪弧线 |
-| **character-designer** | Sonnet | 角色设计 · 角色档案、语言风格、动机链、对话创作 |
-| **narrative-writer** | Sonnet | 叙事写手 · 正文写作、去AI味、格式合规 |
-| **consistency-checker** | Haiku | 一致性检查 · 事实冲突扫描、伏笔追踪、S1-S4 分级报告 |
-| **story-researcher** | Sonnet | 资料研究 · CDP 搜索+正文提取、多源交叉验证、结构化参考文件输出 |
-| **story-explorer** | Haiku | 故事查询 · 角色/伏笔/设定/进度只读查询，日更上下文快速加载 |
-| **chapter-extractor** | Haiku | 章节提取 · 摘要+情节点+角色提及，并行拆文核心单元 |
+| **story-architect** | 故事架构 · 题材定位、大纲结构、钩子/反转设计、情绪弧线 | 高质量模型 |
+| **character-designer** | 角色设计 · 角色档案、语言风格、动机链、对话创作 | 标准模型 |
+| **narrative-writer** | 叙事写手 · 正文写作、去AI味、格式合规 | 标准模型 |
+| **consistency-checker** | 一致性检查 · 事实冲突扫描、伏笔追踪、S1-S4 分级报告 | 轻量模型 |
+| **story-researcher** | 资料研究 · CDP 搜索+正文提取、多源交叉验证、结构化参考文件输出 | 标准模型 |
+| **story-explorer** | 故事查询 · 角色/伏笔/设定/进度只读查询，日更上下文快速加载 | 腰量模型 |
+| **chapter-extractor** | 章节提取 · 摘要+情节点+角色提及，并行拆文核心单元 | 轻量模型 |
 
 Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 100+ 份方法论文件），不预占上下文。
 
-## 自动化 Hooks
+> **多工具兼容**：Agent 定义同时提供 `.claude/agents/`（Claude Code/OpenClaw）和 `.kilo/agent/`（Kilo）两种格式。详见 [Agent 兼容性指南](docs/agent-compatibility.md)。
+
+## 自动化功能
+
+### Claude Code / OpenClaw
 
 `/story-setup` 部署后自动生效的 6 个 hook：
 
@@ -184,6 +218,13 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 | pre-compact.sh | 上下文压缩前 | 保存进度快照路径和行数摘要 |
 | post-compact.sh | 上下文压缩后 | 提示读取进度快照恢复上下文 |
 | validate-story-commit.sh | git commit 时 | 检查硬编码属性、设定必填字段（仅警告，不阻断） |
+
+### Kilo / 其他工具
+
+通过以下方式实现类似功能：
+- **上下文恢复**：AGENTS.md 中定义的恢复流程
+- **一致性检查**：手动调用 `/story-review` 或 consistency-checker agent
+- **状态管理**：通过 `.story-deployed` 和 `上下文.md` 文件管理
 
 ## 项目文件结构
 

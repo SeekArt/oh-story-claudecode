@@ -1,33 +1,46 @@
 ---
 name: story-setup
-version: 1.1.1
+version: 1.2.0
 description: |
-  网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md 等基础设施部署到用户项目目录。
+  网文写作工具集基础设施部署。将 agents/AGENTS.md 等基础设施部署到用户项目目录。
   触发方式：/story-setup、「准备写书」「帮我搭一下环境」「配置写作项目」
+  支持：Claude Code、Kilo、OpenClaw、TRAE 等多种 AI 编程工具
 metadata:
   openclaw:
     source: https://github.com/worldwonderer/oh-story-claudecode
+  kilo:
+    commands: .kilo/command/
+    agents: .kilo/agent/
 ---
 
 # story-setup：网文写作工具集基础设施部署
 
-你是写作基础设施部署器。将网文写作工具集的全套基础设施（hooks、rules、agents、CLAUDE.md）部署到用户项目目录。
+你是写作基础设施部署器。将网文写作工具集的全套基础设施（agents、AGENTS.md）部署到用户项目目录。
 
 **执行铁律：不覆盖用户已有配置，合并而非替换。**
 
+**多工具兼容**：支持 Claude Code、Kilo、OpenClaw、TRAE 等多种 AI 编程工具。
+
 ---
 
-## Phase 1：检测项目状态
+## Phase 1：检测项目状态与工具类型
 
 1. 检查当前目录是否已部署过（存在 `.story-deployed`）
    - 如果已存在 → 使用 AskUserQuestion 确认是否重新部署
 2. 检查是否有书名目录（包含 `追踪/` 子目录的目录，或用户自定义结构）
    - 有 → 识别为长篇项目，显示当前项目信息
    - 无 → 识别为新项目或短篇项目
-3. 检查 `.claude/settings.local.json` 是否存在
+3. **检测工具类型**：
+   - 检查 `.kilo/` 目录 → Kilo 工具
+   - 检查 `.claude/` 目录 → Claude Code/OpenClaw
+   - 两者都有 → 双工具兼容模式
+   - 都没有 → 询问用户使用哪种工具
+4. 检查配置文件是否存在：
+   - Kilo: `kilo.json`
+   - Claude Code: `.claude/settings.local.json`
    - 存在 → 读取现有配置，后续合并
    - 不存在 → 后续创建新文件
-4. 检查 `.active-book` 文件是否存在
+5. 检查 `.active-book` 文件是否存在
    - 存在 → 显示当前活跃书目
    - 不存在 → 跳过
 
@@ -35,104 +48,111 @@ metadata:
 
 使用 AskUserQuestion 确认部署位置后，依次执行。
 
-### 2.0 部署清单（机械可检查）
+### 2.0 部署清单（多工具兼容）
+
+**通用部署**（所有工具都需要）：
 
 | Source path | Target path | Owner class | Merge mode | Validation check |
 |-------------|-------------|-------------|------------|------------------|
-| `skills/story-setup/references/templates/CLAUDE.md.tmpl` | `CLAUDE.md` | user+managed | marker/section merge | contains story skill routing sections |
-| `skills/story-setup/references/templates/hooks/` | `.claude/hooks/` | story-setup managed | recursive replace | `session-*.sh`, `detect-story-gaps.sh`, `validate-story-commit.sh`, `lib/common.sh`, `lib/sentinel.sh` exist |
+| `skills/story-setup/references/templates/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections |
+| `skills/story-setup/references/templates/上下文.md.tmpl` | `{书名}/追踪/上下文.md` | user state | create only if absent | never overwrite existing writing context |
+| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_tool`, `resolver_strategy` |
+
+**Claude Code/OpenClaw 专用**：
+
+| Source path | Target path | Owner class | Merge mode | Validation check |
+|-------------|-------------|-------------|------------|------------------|
+| `skills/story-setup/references/templates/hooks/` | `.claude/hooks/` | story-setup managed | recursive replace | hooks exist and executable |
 | `skills/story-setup/references/templates/rules/*.md` | `.claude/rules/*.md` | story-setup managed | replace | every rule contains `paths` frontmatter |
 | `skills/story-setup/references/templates/agents/*.md` | `.claude/agents/*.md` | story-setup managed | replace | 7 agent files exist |
-| `skills/story-setup/references/agent-references/*.md` | `.claude/skills/story-setup/references/agent-references/*.md` | story-setup managed | replace | every `story-setup/references/agent-references/*.md` reference resolves |
-| `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | merge by hook command | hook JSON valid and registered commands deduped |
-| `skills/story-setup/references/templates/上下文.md.tmpl` | `{书名}/追踪/上下文.md` | user state | create only if absent | never overwrite existing writing context |
-| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
+| `skills/story-setup/references/agent-references/*.md` | `.claude/skills/story-setup/references/agent-references/*.md` | story-setup managed | replace | all reference files exist |
+| `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | merge by hook command | hook JSON valid |
 
-### 2.1 部署 CLAUDE.md
+**Kilo 专用**：
 
-- 读取 `skills/story-setup/references/templates/CLAUDE.md.tmpl`
+| Source path | Target path | Owner class | Merge mode | Validation check |
+|-------------|-------------|-------------|------------|------------------|
+| `.kilo/agent/*.md` | 已在源码中 | story-setup managed | N/A | agent files exist in .kilo/agent/ |
+| `.kilo/command/*.md` | 已在源码中 | story-setup managed | N/A | command files exist in .kilo/command/ |
+| `kilo.json` | `kilo.json` | user+managed | merge | valid JSON config |
+
+### 2.1 部署 AGENTS.md
+
+- 读取 `skills/story-setup/references/templates/AGENTS.md.tmpl`（优先）或 `CLAUDE.md.tmpl`
 - 替换占位符（见下方「模板占位符」段）
-- 写入项目根目录 `CLAUDE.md`（如已存在，按「CLAUDE.md 合并策略」处理）
+- 写入项目根目录 `AGENTS.md`（如已存在，按「AGENTS.md 合并策略」处理）
+- 同时兼容写入 `CLAUDE.md`（Claude Code 兼容）
 
-### 2.2 部署 Hooks
+### 2.2 部署 Agents（工具特定）
 
-- **递归复制完整目录树**：将 `skills/story-setup/references/templates/hooks/` 复制到用户项目 `.claude/hooks/`
-- 必须保留子目录 `lib/`，其中：
-  - `lib/common.sh` 提供 `project_root`、`discover_active_book`、`discover_all_books`
-  - `lib/sentinel.sh` 提供 `.story-deployed` 字段读取
-- 只需对 `.claude/hooks/*.sh` 设置执行权限（`chmod +x`）；`lib/*.sh` 由 hook `source`，不要求可执行位
-
-### 2.3 部署 Rules
-
-- 读取 `skills/story-setup/references/templates/rules/` 下所有 `.md` 文件
-- 复制到用户项目的 `.claude/rules/` 目录
-
-### 2.4 部署 Agents
-
+**Claude Code/OpenClaw**：
 - 读取 `skills/story-setup/references/templates/agents/` 下所有 `.md` 文件
 - 复制到用户项目的 `.claude/agents/` 目录
-- Agent 文件属于 story-setup 管理文件，可安全覆盖；版本升级时按 `UPGRADING.md` 的版本检测结果重新部署
+- Agent 文件属于 story-setup 管理文件，可安全覆盖
 
-### 2.4.1 Agent 兼容性处理
+**Kilo**：
+- Agent 定义已在 `.kilo/agent/` 目录中
+- 无需额外部署，直接使用
+- 用户可在项目中添加自定义 agent
 
-- Agent frontmatter 以 Claude Code 为主；OpenClaw/qclaw 等只要支持 AgentSkills，未知字段（如 `memory`、`skills`、`disallowedTools`）应被忽略。若目标工具报 frontmatter 错误，保留 `name`、`description`、`tools` 三项，删除不支持字段后再部署。
-- 部署到项目后，agent 内引用的参考资料必须走 `story-setup/references/agent-references/*.md` 这一本 skill 内复制路径；不要跨 skill 引用其他 skill 的 references。若全局安装路径不同，优先用项目内 `.claude/skills/` 或 `skills/` 作为规范路径前缀，其次用工具的 skill 搜索能力，不要假定固定绝对路径。
+**通用说明**：
+- Agent 兼容性处理：保留 `name`、`description`、核心字段，删除不支持的字段
+- 参考资料路径：优先用项目内 `.kilo/skills/` 或 `skills/` 作为规范路径前缀
 
-### 2.4.2 部署 Agent References
+### 2.3 部署工具特定配置
 
-- 将 `skills/story-setup/references/agent-references/` 下所有 `.md` 复制到项目内 `.claude/skills/story-setup/references/agent-references/`
-- 如目标项目已经使用项目本地 `skills/` 目录，也可以同步复制到 `skills/story-setup/references/agent-references/` 作为 fallback，但不得只复制 fallback 而遗漏 `.claude/skills/` 主路径
-- 校验：凡 agent 或 reference 中出现 `story-setup/references/agent-references/<file>.md`，源包与目标包都必须存在 `<file>.md`
+**Claude Code/OpenClaw 专用**：
+- **Hooks**：递归复制 `templates/hooks/` 到 `.claude/hooks/`
+- **Rules**：复制 `templates/rules/*.md` 到 `.claude/rules/`
+- **Settings**：合并 `settings-hooks.json` 到 `.claude/settings.local.json`
 
-### 2.5 部署 Session State 模板
+**Kilo 专用**：
+- **Commands**：`.kilo/command/` 目录已存在，无需部署
+- **Config**：确保 `kilo.json` 包含 skills 配置
+
+### 2.4 部署 Session State 模板
 
 - 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
 - 仅当已识别为长篇书目且 `{书名}/追踪/` 已存在时，创建缺失的 `{书名}/追踪/上下文.md`
 - 如果目标文件已存在，不覆盖；短篇项目不得因此创建 `追踪/` 目录
 
-### 2.6 合并 Hooks 注册到 settings.local.json
-
-> 兼容性说明：`settings-hooks.json` 中 PreToolUse 的 `if` 字段使用 Claude Code hook 条件语法，需要运行环境支持 hook-level if。若目标工具不支持该字段，hook 脚本本身仍会自检并 advisory-only 退出；部署时可删除该 `if` 字段并保留 matcher + command。
-
-- 读取 `skills/story-setup/references/templates/settings-hooks.json`
-- 读取用户项目的 `.claude/settings.local.json`（如存在）
-- 合并 hooks 配置（按「settings-hooks.json 合并算法」处理）
-- 写入 `.claude/settings.local.json`
-
-### 2.7 创建部署标记
+### 2.5 创建部署标记
 
 - 创建 `.story-deployed` 文件（sentinel file）
-- 写入以下字段（YAML `key: value` 格式，hook 用 `references/templates/hooks/lib/sentinel.sh` 读取）：
+- 写入以下字段（YAML `key: value` 格式）：
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
-  agents_version: 10
-  setup_skill_version: 1.1.1
-  target_cli: claude-code
+  agents_version: 11
+  setup_skill_version: 1.2.0
+  target_tool: <claude-code|kilo|both>
   resolver_strategy: project-local-skill-reference
-  references_dir: .claude/skills/story-setup/references/agent-references
   ```
-- 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
-- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 10，提示用户重新运行 story-setup 以更新 hooks/agents/rules/reference bundle（具体变更见 `UPGRADING.md`）
+- 此文件供 skill 检测部署状态，避免重复提示
 
 ## Phase 3：验证安装
 
-1. 验证 hooks 注册：
-   - 检查 `.claude/settings.local.json` 中的 hooks 字段是否正确
-   - 检查 `.claude/hooks/` 下的脚本是否存在且有执行权限
-   - 检查 `.claude/hooks/lib/common.sh` 与 `.claude/hooks/lib/sentinel.sh` 是否存在
-2. 验证 rules 路径：
-   - 检查 `.claude/rules/` 下的规则文件是否存在且包含 `paths` frontmatter
-3. 验证 agents：
-   - 检查 `.claude/agents/` 下的 7 个 agent 定义文件是否存在
-4. 验证 agent reference bundle：
-   - 检查 `.claude/skills/story-setup/references/agent-references/` 下 reference 文件完整
-   - 检查所有 `story-setup/references/agent-references/<file>.md` 都能解析到 deployed bundle
-5. 验证部署标记：
-   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 10`、`setup_skill_version: 1.1.1`、`target_cli`、`resolver_strategy`、`references_dir`
-6. 输出安装报告：
-   - 列出所有已部署的文件
-   - 列出需要注意的事项（如已有配置已合并）
-   - 提示用户可以开始使用 `/story-long-write` 或 `/story-short-write`
+根据部署的工具类型验证：
+
+**通用验证**：
+1. 验证 AGENTS.md 存在且包含 skill 路由表
+2. 验证 `.story-deployed` 存在且包含正确字段
+
+**Claude Code/OpenClaw 验证**：
+1. 验证 hooks 注册：`.claude/settings.local.json`
+2. 验证 hooks 脚本：`.claude/hooks/` 可执行
+3. 验证 rules：`.claude/rules/` 包含 `paths` frontmatter
+4. 验证 agents：`.claude/agents/` 7个文件存在
+5. 验证 references：`.claude/skills/story-setup/references/agent-references/`
+
+**Kilo 验证**：
+1. 验证 kilo.json 包含 skills 配置
+2. 验证 agent 定义：`.kilo/agent/` 文件存在
+3. 验证 commands：`.kilo/command/` 文件存在
+
+**输出安装报告**：
+- 列出已部署的文件
+- 列出需要注意的事项
+- 提示用户可使用的命令（根据工具类型）
 
 ---
 

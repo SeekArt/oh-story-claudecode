@@ -1,0 +1,28 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "model": "anthropic/claude-sonnet",
+  "default_agent": "code",
+  "instructions": [
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "skills": {
+    "paths": [
+      "./skills"
+    ]
+  },
+  "permission": {
+    "bash": "allow",
+    "edit": {
+      "**/*.md": "allow",
+      "**/*.json": "allow",
+      "**/*.txt": "allow",
+      "*.lock": "deny",
+      "*": "ask"
+    },
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "webfetch": "ask"
+  }
+}

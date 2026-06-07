@@ -2,6 +2,86 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.0
+
+> **多工具兼容性支持** - 现已支持 Claude Code、Kilo、OpenClaw、TRAE 等多种 AI 编程工具
+
+### 新特性
+
+- **多工具架构**：
+  - 新增 `.kilo/` 目录，支持 Kilo CLI 工具
+  - 新增 `kilo.json` 配置文件
+  - 新增 7 个 Kilo 格式 agent 定义（`.kilo/agent/*.md`）
+  - 新增 12 个 Kilo 格式 command 定义（`.kilo/command/*.md`）
+  - 保留 `.claude/` 兼容性，支持 Claude Code / OpenClaw
+
+- **智能 Agent 执行策略**：
+  - 自动检测可用的执行方式
+  - 优先使用项目部署的 agents
+  - 项目 agents 不可用时，使用环境子代理能力
+  - 都不可用时，降级为主会话执行
+  - 支持 TRAE 等非 Claude Code 环境的并行处理
+
+- **新增文档**：
+  - `docs/migration-guide.md` - 多工具迁移指南
+  - `docs/agent-compatibility.md` - Agent 兼容性指南
+  - `docs/agent-execution-strategy.md` - Agent 执行策略说明
+  - `docs/update-summary.md` - 更新总结
+  - `skills/story-setup/references/templates/AGENTS.md.tmpl` - 通用项目说明文件
+
+### 改进
+
+- **story-review**：
+  - 支持三种执行模式：项目 agents / 环境子代理 / solo
+  - 报告新增 `Execution` 和 `Agent Source` 元数据字段
+  - 环境子代理并行执行审查任务
+
+- **story-long-analyze**：
+  - Stage 2 并行处理支持环境子代理
+  - 三级执行策略：项目 agents → 环境子代理 → 串行
+  - 批量策略适应不同环境能力
+
+- **story-import**：
+  - 同 story-long-analyze 的执行策略
+  - 环境检测支持多执行方式判定
+
+- **story-setup 多工具支持**：
+  - 自动检测工具类型（Claude Code / Kilo / 其他）
+  - 根据工具类型部署对应配置
+  - 支持 `.claude/` 和 `.kilo/` 双目录兼容
+
+- **README 更新**：
+  - 新增多工具安装说明
+  - 新增功能差异对比表
+  - 新增快速开始指南
+
+### 兼容性
+
+- **完全向后兼容**：
+  - 所有现有 `.claude/` 配置继续有效
+  - Claude Code 用户无需任何更改
+  - Hooks 功能继续可用
+
+- **功能对等**：
+  - 13 个 skills 全部支持
+  - 7 个 agents 全部可用（项目 agents 或环境子代理）
+  - 参考文件路径自动适配
+
+### 执行策略对比
+
+| 执行方式 | Claude Code | Kilo | TRAE | 其他 |
+|---------|-------------|------|------|------|
+| 项目 agents | ✅ Agent 工具 | ✅ 内置 | ✅ 适配 | ⚠️ 需适配 |
+| 环境子代理 | ✅ Task 工具 | ✅ Task 工具 | ✅ 原生支持 | ⚠️ 看环境 |
+| Solo/串行 | ✅ | ✅ | ✅ | ✅ |
+
+### 迁移说明
+
+- Claude Code 用户：无需迁移，继续使用现有配置
+- Kilo 用户：使用 `.kilo/` 目录或运行 `/story-setup`
+- TRAE 用户：自动使用环境子代理，或运行 `/story-setup` 部署
+- 其他工具：参考 `docs/migration-guide.md` 进行配置
+
 ## v0.6.14
 
 > 细纲后自动补全新设定/角色（防设定漂移）· Windows `python3` 跨平台修复（Store 占位程序 exit 49）· SessionStart hook 中文化 · 文档纠偏（README_EN / CONTRIBUTING）· 工程守卫加固（python 调用 / 语法 / 共享文件精度）
