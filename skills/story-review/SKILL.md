@@ -99,6 +99,7 @@ Rubric Source: file | embedded fallback
 | 角色关系/好感度 | `story-review/references/character-relations.md` |
 | 对话质量 | `story-review/references/dialogue-mastery.md` |
 | 审查禁用词 | `story-review/references/banned-words.md` |
+| 连续性检查规则 | `story-review/references/continuity-rules.md` |
 | 平台 rubric | `story-review/references/rubrics/{fanqie,qidian,zhihu}.md` |
 | 标点预检脚本 | `story-review/scripts/normalize-punctuation.js` |
 
@@ -120,6 +121,15 @@ Rubric Source: file | embedded fallback
 - 高潮构建：蓄能 → 假胜 → 崩解 → 反转/兑现；高潮直接平铺、无代价或无兑现通常 S2/S3。
 - 关系/好感度：互动尺度必须匹配当前关系阶段；越界亲密、突然信任、突然敌对都需要铺垫，否则按影响定 S1/S2。
 - 伏笔与连载期待：伏笔状态需可追踪；伏笔密度只作为结构风险提示，除非直接造成理解混乱，否则不升级到 S2+。
+
+连续性规则 fallback 摘要（至少检查以下在审查范围内相关的项）：
+- 人物位置一致性：角色不能同一时间出现在两地；移动需要路程时间
+- 知识边界：角色不能知道超出其信息范围的事
+- 身体/生存状态：伤病需有恢复过程；死亡角色不能无解释再出场
+- 物品所有权连续：物品转手需要过程；消耗品不能重复使用
+- 时间线自洽：年龄/季节/昼夜不能矛盾；路程需合理时间
+- 能力限制：设定的冷却/代价/限制不能被无解释打破
+- 伏笔状态：已回收伏笔不应再列为未解悬念
 
 AI 味 / 禁用词 fallback 速查：
 - 高频套话：`命运的齿轮开始转动`、`心猛地一沉`、`眼神复杂`、`深刻变化`、`踏上新的旅程`。
@@ -322,12 +332,18 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   审查基准包摘要：{Phase 1 形成的 rubric / fallback 摘要，必须内联}
   Rubric Source: file | embedded fallback
   可选补充参考：如项目已部署 story-setup reference bundle，可读取 `story-setup/references/agent-references/quality-checklist.md`；若不可读，不影响事实冲突扫描。
+
+  连续性检查细则：优先读取 `story-review/references/continuity-rules.md`（8 类 34 项检查规则）；不可读时使用内置连续性规则 fallback 摘要。
+
   检查项：
-  1. 角色属性是否前后一致？
-  2. 世界规则是否被违反？
-  3. 伏笔状态是否前后一致（已埋/计划回收/已回收/断线）？
-  4. 时间线是否自洽？
-  5. 术语、身份、地点、能力边界是否前后一致？
+  1. 角色属性是否前后一致？（位置、知识边界、年龄、身体状态、生存状态）
+  2. 关系变化是否有事件支撑？（信任度、称呼、关系类型）
+  3. 事件因果是否完整？（因果链、冲突解决、参与者合理性）
+  4. 物品所有权、消耗、状态是否连续？
+  5. 世界规则是否被违反？（能力限制、制度规则、代价消耗）
+  6. 伏笔状态是否前后一致（已埋/计划回收/已回收/断线）？
+  7. 时间线是否自洽？
+  8. 信息分层检查：角色是否知道不该知道的信息？读者是否获得了角色尚不可能知道的叙事信息？
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
@@ -433,9 +449,10 @@ lean 模式只 spawn `story-architect` + `consistency-checker`。如果任一缺
 solo 必须执行基础检查：
 1. 格式合规性检查（一段一句、无空行、对话格式、段落过长）。
 2. 简单的设定一致性 grep（角色名、属性、关键设定、伏笔关键词）。
-3. AI 味与禁用词检查（优先读取 `story-review/references/banned-words.md` 与 `story-review/references/anti-ai-writing.md`，不可读时使用内置 AI 味 / 禁用词 fallback 速查）。
-4. 通用网文内容评分（优先读取 `story-review/references/quality-rubric.md`，不可读时使用内置通用网文内容 rubric）。
-5. 按统一 Findings Schema 输出简化版报告。
+3. 连续性检查：对照 continuity-rules.md 或内置 fallback 摘要，检查位置/知识边界/身体状态/物品/时间线/能力限制中的明显矛盾。
+4. AI 味与禁用词检查（优先读取 `story-review/references/banned-words.md` 与 `story-review/references/anti-ai-writing.md`，不可读时使用内置 AI 味 / 禁用词 fallback 速查）。
+5. 通用网文内容评分（优先读取 `story-review/references/quality-rubric.md`，不可读时使用内置通用网文内容 rubric）。
+6. 按统一 Findings Schema 输出简化版报告。
 
 ### solo 模式输出格式
 
