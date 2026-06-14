@@ -23,6 +23,7 @@ description: |
 | 短篇扫榜 | 短篇排行、知乎盐言排行 | `/story-short-scan` |
 | 去 AI 味 | 去 AI 味、太 AI、去味 | `/story-deslop` |
 | 封面 | 封面、封面图 | `/story-cover` |
+| 文风提取 | 提取文风、文风分析、抽一下文风 | `/story-style-extract` |
 | 环境部署 | 准备写书、搭环境、初始化 | `/story-setup` |
 | 浏览器操控 | 浏览器、抓取、登录态 | `/browser-cdp` |
 | 导入小说 | 导入、反向解析、导入小说、把我的书导进来 | `/story-import` |
