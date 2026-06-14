@@ -333,7 +333,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   Rubric Source: file | embedded fallback
   可选补充参考：如项目已部署 story-setup reference bundle，可读取 `story-setup/references/agent-references/quality-checklist.md`；若不可读，不影响事实冲突扫描。
 
-  连续性检查细则：优先读取 `story-review/references/continuity-rules.md`（8 类 34 项检查规则）；不可读时使用内置连续性规则 fallback 摘要。
+  连续性检查细则：优先读取 `story-review/references/continuity-rules.md`（10 类 40+ 项检查规则）；不可读时使用内置连续性规则 fallback 摘要。
 
   检查项：
   1. 角色属性是否前后一致？（位置、知识边界、年龄、身体状态、生存状态）
@@ -344,6 +344,8 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   6. 伏笔状态是否前后一致（已埋/计划回收/已回收/断线）？
   7. 时间线是否自洽？
   8. 信息分层检查：角色是否知道不该知道的信息？读者是否获得了角色尚不可能知道的叙事信息？
+  9. **引用完整性**：正文中出现的角色/物品/地点/能力，是否在对应的设定文件中有记录？物品的持有者是否在角色列表中存在？关键物品的持有链是否连续（转手是否有过程交代）？
+  10. **分域穷尽扫描**：不要一次性读大量正文凭感觉找矛盾。按域分批扫描——先跑人物域（位置/年龄/伤病），再跑物品域（所有权/消耗），再跑时间线域（时序/昼夜），最后跑伏笔域（状态/关联）。每域单独出具扫描结果再汇总。
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
